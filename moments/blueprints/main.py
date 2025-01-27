@@ -1,4 +1,5 @@
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_from_directory, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, \
+    send_from_directory, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, select
 from sqlalchemy.orm import with_parent
@@ -6,6 +7,7 @@ from sqlalchemy.orm import with_parent
 from moments.core.extensions import db
 from moments.decorators import confirm_required, permission_required
 from moments.forms.main import CommentForm, DescriptionForm, TagForm
+from moments.ml.services import generate_alt_text, get_tags
 from moments.models import Collection, Comment, Follow, Notification, Photo, Tag, User
 from moments.notifications import push_collect_notification, push_comment_notification
 from moments.utils import flash_errors, redirect_back, rename_image, resize_image, validate_image
@@ -65,7 +67,8 @@ def search():
     else:
         pagination = Photo.query.whooshee_search(q).paginate(page=page, per_page=per_page)
     results = pagination.items
-    return render_template('main/search.html', q=q, results=results, pagination=pagination, category=category)
+    return render_template('main/search.html', q=q, results=results, pagination=pagination,
+                           category=category)
 
 
 @main_bp.route('/notifications')
@@ -78,9 +81,11 @@ def show_notifications():
     if filter_rule == 'unread':
         stmt = stmt.filter_by(is_read=False)
 
-    pagination = db.paginate(stmt.order_by(Notification.created_at.desc()), page=page, per_page=per_page)
+    pagination = db.paginate(stmt.order_by(Notification.created_at.desc()), page=page,
+                             per_page=per_page)
     notifications = pagination.items
-    return render_template('main/notifications.html', pagination=pagination, notifications=notifications)
+    return render_template('main/notifications.html', pagination=pagination,
+                           notifications=notifications)
 
 
 @main_bp.route('/notifications/read/<int:notification_id>', methods=['POST'])
@@ -133,11 +138,31 @@ def upload():
         f.save(current_app.config['MOMENTS_UPLOAD_PATH'] / filename)
         filename_s = resize_image(f, filename, current_app.config['MOMENTS_PHOTO_SIZES']['small'])
         filename_m = resize_image(f, filename, current_app.config['MOMENTS_PHOTO_SIZES']['medium'])
+        try:
+            path = current_app.config['MOMENTS_UPLOAD_PATH'] / filename
+            path = str(path).replace('\\\\', '\\')
+            description = generate_alt_text(path)
+            tags = get_tags(path)
+        except:
+            description = ''
+            tags = []
         photo = Photo(
-            filename=filename, filename_s=filename_s, filename_m=filename_m, author=current_user._get_current_object()
+            filename=filename, filename_s=filename_s, filename_m=filename_m,
+            author=current_user._get_current_object()
         )
+        photo.description = f'(AI Generated) {description}'
         db.session.add(photo)
         db.session.commit()
+        for name in tags:
+            name = f'(AI Generated) {name}'
+            tag = db.session.scalar(select(Tag).filter_by(name=name))
+            if tag is None:
+                tag = Tag(name=name)
+                db.session.add(tag)
+                db.session.commit()
+            if tag not in photo.tags:
+                photo.tags.append(tag)
+                db.session.commit()
     return render_template('main/upload.html')
 
 
@@ -147,7 +172,8 @@ def show_photo(photo_id):
     page = request.args.get('page', 1, type=int)
     per_page = current_app.config['MOMENTS_COMMENT_PER_PAGE']
     pagination = db.paginate(
-        select(Comment).filter_by(photo_id=photo.id).order_by(Comment.created_at.asc()), page=page, per_page=per_page
+        select(Comment).filter_by(photo_id=photo.id).order_by(Comment.created_at.asc()), page=page,
+        per_page=per_page
     )
     comments = pagination.items
 
@@ -258,7 +284,8 @@ def show_collectors(photo_id):
     stmt = photo.collections.select().order_by(Collection.created_at.desc())
     pagination = db.paginate(stmt, page=page, per_page=per_page)
     collections = pagination.items
-    return render_template('main/collectors.html', collections=collections, photo=photo, pagination=pagination)
+    return render_template('main/collectors.html', collections=collections, photo=photo,
+                           pagination=pagination)
 
 
 @main_bp.route('/photo/<int:photo_id>/description', methods=['POST'])
@@ -352,7 +379,8 @@ def set_comment(photo_id):
 def reply_comment(comment_id):
     comment = db.session.get(Comment, comment_id) or abort(404)
     return redirect(
-        url_for('.show_photo', photo_id=comment.photo_id, reply=comment_id, author=comment.author.name)
+        url_for('.show_photo', photo_id=comment.photo_id, reply=comment_id,
+                author=comment.author.name)
         + '#comment-form'
     )
 
@@ -386,7 +414,8 @@ def delete_photo(photo_id):
 @login_required
 def delete_comment(comment_id):
     comment = db.session.get(Comment, comment_id) or abort(404)
-    if current_user != comment.author and current_user != comment.photo.author and not current_user.can('MODERATE'):
+    if current_user != comment.author and current_user != comment.photo.author and not current_user.can(
+        'MODERATE'):
         abort(403)
     db.session.delete(comment)
     db.session.commit()
@@ -406,7 +435,8 @@ def show_tag(tag_id):
 
     if order_rule == 'collections':
         photos.sort(key=lambda x: x.collectors_count, reverse=True)
-    return render_template('main/tag.html', tag=tag, pagination=pagination, photos=photos, order_rule=order_rule)
+    return render_template('main/tag.html', tag=tag, pagination=pagination, photos=photos,
+                           order_rule=order_rule)
 
 
 @main_bp.route('/delete/tag/<int:photo_id>/<int:tag_id>', methods=['POST'])
