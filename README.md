@@ -1,6 +1,8 @@
 # Moments
 
-A photo sharing social networking app built with Python and Flask. The example application for the book *[Python Web Development with Flask (2nd edition)](https://helloflask.com/en/book/4)* (《[Flask Web 开发实战（第 2 版）](https://helloflask.com/book/4)》).
+A photo sharing social networking app built with Python and Flask. The example application for the
+book
+*[Python Web Development with Flask (2nd edition)](https://helloflask.com/en/book/4)* (《[Flask Web 开发实战（第 2 版）](https://helloflask.com/book/4)》).
 
 Demo: http://moments.helloflask.com
 
@@ -21,8 +23,13 @@ Install dependencies with [PDM](https://pdm.fming.dev):
 $ pdm install
 ```
 
+Create a .env file in the root folder and add asure vision credentials
+> ENDPOINT=YOUR ENDPOINT
+> KEY=YOUR KEY
+
 > [!TIP]
-> If you don't have PDM installed, you can create a virtual environment with `venv` and install dependencies with `pip install -r requirements.txt`.
+> If you don't have PDM installed, you can create a virtual environment with `venv` and install
+> dependencies with `pip install -r requirements.txt`.
 
 To initialize the app, run the `flask init-app` command:
 
