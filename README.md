@@ -16,9 +16,28 @@ Clone the repo:
 $ git clone https://github.com/greyli/moments
 $ cd moments
 ```
-
 Install dependencies with [PDM](https://pdm.fming.dev):
 
+## Setup Azure Vision API
+
+Azure Computer Vision API Setup (Optional but Recommended)
+To enable automatic generation of image alt text and tags, configure Azure Cognitive Services.
+
+a. Install Azure SDK Packages
+```bash
+pdm add azure-cognitiveservices-vision-computervision python-dotenv msrest
+(or pip install them manually if not using PDM.)
+```
+
+b. Create a .env file
+Create a .env file at the project root with the following content:
+```
+ENDPOINT=your_azure_endpoint_here
+KEY=your_azure_key_here
+```
+You can obtain these credentials by creating an Azure Computer Vision resource in your Azure portal.
+
+## Installation
 ```
 $ pdm install
 ```
